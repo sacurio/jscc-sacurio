@@ -39,7 +39,6 @@ func (r *rabbitMQ) buildURL() string {
 
 // Connect establishes a connection to RabbitMQ.
 func (r *rabbitMQ) Connect() (*amqp.Connection, error) {
-	fmt.Println(r.buildURL())
 	conn, err := amqp.Dial(r.buildURL())
 	if err != nil {
 		return nil, err
