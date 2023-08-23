@@ -30,10 +30,10 @@ func NewServer(port string, userService user.UserService, log *logrus.Logger) *S
 func (s *Server) StartHTTPServer() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", server.DefaultHandler)
-	r.HandleFunc("/user/validate/", func(w http.ResponseWriter, r *http.Request) {
-		server.ValidateUser(w, r, s.userService)
-	}).Methods("POST")
+	r.Use(LoggingMiddleware(s.log), MetricsMiddleware(s.log))
+
+	r.HandleFunc("/", server.DefaultHandler(s.log))
+	r.HandleFunc("/user/validate/", server.ValidateUser(s.userService, s.log)).Methods("POST")
 
 	s.log.Infof("Starting HTTP Server on: %s", s.port)
 
