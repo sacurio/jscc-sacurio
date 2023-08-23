@@ -5,10 +5,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    environment:
+      ENVIRONMENT: container
     ports:
       - "8087:8087"
     depends_on: 
       - mysql
+      - rabbitmq
     networks: 
       - mynet
   mysql:
@@ -28,13 +31,15 @@ services:
       - mynet
 
   rabbitmq:
-    image: rabbitmq:latest
+    image: rabbitmq:3-management
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - mynet
 
 networks:
   mynet:
