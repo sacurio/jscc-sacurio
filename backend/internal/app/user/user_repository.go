@@ -35,7 +35,7 @@ func (ur *userRepository) Create(user *User) error {
 // value and returns a *User instance.
 func (ur *userRepository) FindByUsernameAndPassword(username, pwd string) (*User, error) {
 	var user User
-	result := ur.db.Where("username = ? AND password = ?", username, pwd).First(&user)
+	result := ur.db.Where("username = ? AND pwd = ?", username, pwd).First(&user)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil
