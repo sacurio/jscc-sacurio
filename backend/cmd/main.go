@@ -14,17 +14,14 @@ func main() {
 
 	app, err := config.LoadConfig()
 	if err != nil {
-		log.Panicf("app config values was not loaded: %s", err.Error())
+		log.Panicf("App config values was not loaded: %s", err.Error())
 	}
-	log.Infof("starting %s app...", util.ValidateStringNotEmpty(app.Name, util.DefaultAppName))
-	log.Infof("%v", app)
+	log.Infof("Starting %s app...", util.ValidateStringNotEmpty(app.Name, util.DefaultAppName))
 
-	dbConn, err := db.ConnectMySQL()
-	if err != nil {
-		return
-	}
+	dbHandler := db.NewDatabase(app.DBConfig.User, app.DBConfig.Pwd, app.DBConfig.Port, app.DBConfig.Host, app.DBConfig.DbName, log)
+	dbHandler.SetupDB()
 
-	userRepo := user.NewUserRepository(dbConn)
+	userRepo := user.NewUserRepository(dbHandler.DB)
 	userValidator := user.NewUserValidator()
 	userUserService := user.NewUserService(userRepo, userValidator)
 	srv := server.NewServer(util.ValidateStringNotEmpty(app.Port, util.DefaultPort), userUserService, log)
