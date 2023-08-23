@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/sacurio/jb-challenge/internal/util"
 )
 
 type (
@@ -37,7 +38,7 @@ func LoadConfig() (*AppConfig, error) {
 			User:   os.Getenv("MYSQL_USER"),
 			Pwd:    os.Getenv("MYSQL_PASSWORD"),
 			Port:   os.Getenv("MYSQL_PORT"),
-			Host:   os.Getenv("MYSQL_HOST"),
+			Host:   util.ValidateStringNotEmpty(os.Getenv("MYSQL_HOST"), "localhost"),
 			DbName: os.Getenv("MYSQL_DATABASE"),
 		},
 	}, nil
