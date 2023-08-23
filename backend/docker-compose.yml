@@ -1,6 +1,16 @@
 version: '3.8'
 
 services:
+  chatbot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8087:8087"
+    depends_on: 
+      - mysql
+    networks: 
+      - mynet
   mysql:
     image: mysql:latest
     restart: always
@@ -14,6 +24,8 @@ services:
       - "3306:3306"
     volumes:
         - ./internal/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - mynet
 
   rabbitmq:
     image: rabbitmq:latest
@@ -23,3 +35,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+networks:
+  mynet:
+    driver: bridge
