@@ -37,6 +37,10 @@ run:
 	go run cmd/main.go
 
 # executes docker-compose file.
+docker-build:
+	docker-compose up --build
+
+# executes docker-compose file.
 docker-up:
 	docker-compose up -d
 
