@@ -1,42 +1,48 @@
 package main
 
 import (
-	"github.com/sacurio/jb-challenge/internal/app/message"
-	"github.com/sacurio/jb-challenge/internal/app/user"
+	repository "github.com/sacurio/jb-challenge/internal/app/repository/user"
+	"github.com/sacurio/jb-challenge/internal/app/service"
 	"github.com/sacurio/jb-challenge/internal/config"
-	"github.com/sacurio/jb-challenge/internal/infraestructure/db"
-	"github.com/sacurio/jb-challenge/internal/infraestructure/rabbitmq"
-	"github.com/sacurio/jb-challenge/internal/infraestructure/server"
 	"github.com/sacurio/jb-challenge/internal/util"
+	db "github.com/sacurio/jb-challenge/pkg/db/mysql"
+	"github.com/sacurio/jb-challenge/pkg/server"
+	"github.com/sacurio/jb-challenge/pkg/websocket"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	log := logrus.New()
 
-	app, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(log)
 	if err != nil {
 		log.Panicf("App config values was not loaded: %s", err.Error())
 	}
-	log.Infof("Starting %s app...", util.ValidateStringNotEmpty(app.Name, util.DefaultAppName))
+	log.Infof("Starting %s app...", util.ValidateStringNotEmpty(cfg.Name, util.DefaultAppName))
 
-	dbHandler := db.NewDatabase(app.DBConfig.User, app.DBConfig.Pwd, app.DBConfig.Port, app.DBConfig.Host, app.DBConfig.DbName, log)
-	dbHandler.SetupDB()
+	dbHandler := db.NewDB(cfg.DBConfig, log)
 
-	rabbitMQConfig := rabbitmq.NewRabbitMQConfig(app.RMQConfig.User, app.RMQConfig.Password, app.RMQConfig.Host, app.RMQConfig.Port)
-	rabbitMQHandler, err := rabbitmq.NewRabbitMQ(rabbitMQConfig, log)
-	if err != nil {
-		log.Panicf("Error on connecting to RabbitMQ service: %s", err.Error())
-	}
+	userRepository := repository.NewUser(dbHandler.DB)
+	userService := service.NewService(userRepository)
 
-	defer rabbitMQHandler.Close()
+	webSocketService := websocket.NewWebSocketServer(cfg.WebSocketServerPort, cfg.Logger)
+	webSocketService.Start()
 
-	messageService := message.NewMessageService(rabbitMQHandler)
-
-	userRepo := user.NewUserRepository(dbHandler.DB)
-	userValidator := user.NewUserValidator()
-	userUserService := user.NewUserService(userRepo, userValidator)
-
-	srv := server.NewServer(util.ValidateStringNotEmpty(app.Port, util.DefaultPort), userUserService, messageService, log)
+	srv := server.NewServer(
+		util.ValidateStringNotEmpty(
+			cfg.HttpServerPort,
+			util.DefaultPort,
+		),
+		userService,
+		webSocketService,
+		log)
 	srv.StartHTTPServer()
+}
+
+func initWebSocketServer(config *config.AppConfig) {
+	go func() {
+		config.Logger.Info("Starting to rising up WebSocket Server...")
+		wss := websocket.NewWebSocketServer(config.WebSocketServerPort, config.Logger)
+		wss.Start()
+	}()
 }
