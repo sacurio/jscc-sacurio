@@ -2,12 +2,14 @@ package websocket
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/sacurio/jb-challenge/internal/app/model"
+	"github.com/sacurio/jb-challenge/internal/app/service"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,15 +18,17 @@ type (
 		Read(client *Client) error
 		Broadcast() error
 		Start()
-		ServeWs() http.HandlerFunc
+		Serve() http.HandlerFunc
 	}
 
 	webSocketServer struct {
-		port      string
-		clients   map[*Client]bool
-		broadcast chan *model.Chat
-		upgrader  websocket.Upgrader
-		logger    *logrus.Logger
+		port             string
+		clients          map[*Client]bool
+		broadcastChannel chan *model.Chat
+		errorChannel     chan *model.ChatError
+		jwtService       service.JWTManager
+		upgrader         websocket.Upgrader
+		logger           *logrus.Logger
 	}
 
 	Client struct {
@@ -35,15 +39,18 @@ type (
 	Message struct {
 		Type string     `json:"type"`
 		User string     `json:"user,omitempty"`
+		JWT  string     `json:"jwt,omitempty"`
 		Chat model.Chat `json:"chat,omitempty"`
 	}
 )
 
-func NewWebSocketServer(port string, logger *logrus.Logger) WebSocketService {
+func NewWebSocketServer(port string, jwtService service.JWTManager, logger *logrus.Logger) WebSocketService {
 	return &webSocketServer{
-		port:      port,
-		clients:   make(map[*Client]bool),
-		broadcast: make(chan *model.Chat),
+		port:             port,
+		clients:          make(map[*Client]bool),
+		broadcastChannel: make(chan *model.Chat),
+		errorChannel:     make(chan *model.ChatError),
+		jwtService:       jwtService,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -72,8 +79,13 @@ func (wss *webSocketServer) Read(client *Client) error {
 			continue
 		}
 
+		client.Username = m.User
+		_, err = wss.jwtService.ValidateToken(m.JWT)
+		if err != nil {
+			return errors.New("invalid token")
+		}
+
 		if m.Type == "bootup" {
-			client.Username = m.User
 			wss.logger.WithFields(logrus.Fields{
 				"client info": client,
 				"username":    client.Username,
@@ -83,6 +95,7 @@ func (wss *webSocketServer) Read(client *Client) error {
 				"type", m.Type).Info("received message")
 			c := m.Chat
 			c.Timestamp = time.Now().Unix()
+			c.From = m.User
 
 			// // save in redis
 			// id, err := redisrepo.CreateChat(&c)
@@ -91,29 +104,34 @@ func (wss *webSocketServer) Read(client *Client) error {
 			// 	return
 			// }
 
-			wss.broadcast <- &c
+			wss.broadcastChannel <- &c
 		}
 	}
 }
 
 func (wss *webSocketServer) Broadcast() error {
 	for {
-		message := <-wss.broadcast
-		wss.logger.Println("new message to be broadcasted", message)
+		select {
+		case message := <-wss.broadcastChannel:
+			wss.logger.Info("new message to be broadcasted")
 
-		for client := range wss.clients {
-			err := client.Conn.WriteJSON(message)
-			if err != nil {
-				wss.logger.Errorf("Websocket error: %s", err)
-				client.Conn.Close()
-				delete(wss.clients, client)
+			for client := range wss.clients {
+				wss.handleIfErrorExists(client, message)
+			}
+		case errChannel := <-wss.errorChannel:
+			errMsg := "Unauthorized. Token provided is not valid."
+			wss.logger.Warn(errMsg)
+			for client := range wss.clients {
+				if client.Username == errChannel.CausedBy {
+					wss.handleIfErrorExists(client, errChannel)
+				}
 			}
 		}
 	}
 }
 
 // define our WebSocket endpoint
-func (wss *webSocketServer) ServeWs() http.HandlerFunc {
+func (wss *webSocketServer) Serve() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		wss.logger.WithFields(logrus.Fields{
 			"host":                r.Host,
@@ -122,7 +140,7 @@ func (wss *webSocketServer) ServeWs() http.HandlerFunc {
 
 		ws, err := wss.upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Println(err)
+			wss.logger.Error(err)
 		}
 
 		client := &Client{Conn: ws}
@@ -133,7 +151,16 @@ func (wss *webSocketServer) ServeWs() http.HandlerFunc {
 			"remote address": ws.RemoteAddr(),
 		}).Info("connected clients")
 
-		wss.Read(client)
+		if err := wss.Read(client); err != nil {
+			chatErr := model.ChatError{
+				Msg:      err.Error(),
+				Status:   http.StatusUnauthorized,
+				CausedBy: client.Username,
+			}
+			wss.errorChannel <- &chatErr
+
+			return
+		}
 
 		wss.logger.WithFields(logrus.Fields{
 			"remote address": ws.RemoteAddr().String(),
@@ -146,4 +173,13 @@ func (wss *webSocketServer) Start() {
 	// RabbitMQ
 	wss.logger.Info("Staring websocket server...")
 	go wss.Broadcast()
+}
+
+func (wss *webSocketServer) handleIfErrorExists(client *Client, data interface{}) {
+	err := client.Conn.WriteJSON(data)
+	if err != nil {
+		wss.logger.Errorf("Websocket error: %s", err)
+		client.Conn.Close()
+		delete(wss.clients, client)
+	}
 }

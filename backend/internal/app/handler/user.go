@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/sacurio/jb-challenge/internal/app/service"
@@ -21,7 +22,7 @@ func DefaultHandler(logger *logrus.Logger) http.HandlerFunc {
 }
 
 // ValidateUser...
-func ValidateUser(userService service.User, logger *logrus.Logger) http.HandlerFunc {
+func ValidateUser(userService service.User, jwtService service.JWTManager, logger *logrus.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		qv := r.URL.Query()
 
@@ -32,6 +33,7 @@ func ValidateUser(userService service.User, logger *logrus.Logger) http.HandlerF
 		if err != nil {
 			logger.Errorf("user validation error: %s", err.Error())
 			util.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+			return
 		}
 
 		if !isValid {
@@ -41,11 +43,22 @@ func ValidateUser(userService service.User, logger *logrus.Logger) http.HandlerF
 			return
 		}
 
+		stringToken, err := jwtService.GenerateToken(username)
+		if err != nil {
+			fmt.Println(err)
+			util.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		}
+
 		resp := util.MapResponse{
 			"status": "ok",
+			"token":  "Bearer " + stringToken,
+		}
+
+		header := map[string]string{
+			"Authorization": "Bearer " + stringToken,
 		}
 
 		respJSON := util.CustomMarshall(w, resp, logger)
-		util.SendJSONResponse(w, http.StatusOK, respJSON)
+		util.SendJSONResponseWithHeaders(w, http.StatusOK, respJSON, header)
 	}
 }

@@ -23,6 +23,7 @@ type (
 		Name                string
 		HttpServerPort      string
 		WebSocketServerPort string
+		SecretKey           string
 		DBConfig            DBConfig
 		RabbitConfig        RabbitMQConfig
 		Logger              *logrus.Logger
@@ -47,7 +48,7 @@ func LoadConfig(logger *logrus.Logger) (*AppConfig, error) {
 		file = ".env"
 	}
 
-	logger.Warnf("Ready to load %s variables.", variablesMsg)
+	logger.Infof("Ready to load %s variables.", variablesMsg)
 
 	if err := godotenv.Load(file); err != nil {
 		logger.Error("error on reading environment variables")
@@ -58,6 +59,7 @@ func LoadConfig(logger *logrus.Logger) (*AppConfig, error) {
 	return &AppConfig{
 		Name:                os.Getenv("APP_NAME"),
 		HttpServerPort:      os.Getenv("SERVER_PORT"),
+		SecretKey:           os.Getenv("APP_SECRET_KEY"),
 		WebSocketServerPort: os.Getenv("WEBSOCKET_SERVER_PORT"),
 		DBConfig: DBConfig{
 			User:   os.Getenv("MYSQL_USER"),
