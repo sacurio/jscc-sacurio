@@ -24,6 +24,7 @@ type (
 		HttpServerPort      string
 		WebSocketServerPort string
 		SecretKey           string
+		MaxHistoryMsgs      string
 		DBConfig            DBConfig
 		RabbitConfig        RabbitMQConfig
 		BotConfig           BotConfig
@@ -68,6 +69,7 @@ func LoadConfig(logger *logrus.Logger) (*AppConfig, error) {
 		HttpServerPort:      os.Getenv("SERVER_PORT"),
 		SecretKey:           os.Getenv("APP_SECRET_KEY"),
 		WebSocketServerPort: os.Getenv("WEBSOCKET_SERVER_PORT"),
+		MaxHistoryMsgs:      os.Getenv("APP_MAX_HISTORY_MSGS"),
 		DBConfig: DBConfig{
 			User:   os.Getenv("MYSQL_USER"),
 			Pwd:    os.Getenv("MYSQL_PASSWORD"),

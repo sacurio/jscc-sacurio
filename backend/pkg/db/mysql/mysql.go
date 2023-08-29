@@ -59,7 +59,7 @@ func (d *DB) setupDB() error {
 	}
 
 	d.DB = dbConn
-	dbConn.AutoMigrate(&model.User{})
+	dbConn.AutoMigrate(&model.User{}, &model.Message{})
 
 	return nil
 }

@@ -24,10 +24,12 @@
 				  <div class="d-flex flex-row align-items-center">
 					<i class="fas fa-minus me-3 text-muted fa-xs"></i>
 					<i class="fas fa-comments me-3 text-muted fa-xs"></i>
-					<i class="fas fa-times text-muted fa-xs"></i>
+					<i class="fas fa-times text-muted fa-xs" id="msgCount"></i>
 				  </div>
 				</div>
 				<div class="card-body" data-mdb-perfect-scrollbar="true" style="position: relative; height: 400px; overflow-y: auto;" id="chatArea">	  
+					<div id="dvLast"></div>
+					<div id="dvNews"></div>
 				</div>
 				<div class="card-footer text-muted d-flex justify-content-start align-items-center p-3">
 				  <div class="input-group mb-0">
@@ -49,9 +51,14 @@
 
 	<script>
 		const chatArea = document.getElementById("chatArea");
+		const lastArea = document.getElementById("dvLast");
+		const newsArea = document.getElementById("dvNews");
 		const spnUser = document.getElementById("spnUser");
 		const btnSend = document.getElementById("btnSend");
 		const btnLogout = document.getElementById("btnLogout");
+		const msgCount = document.getElementById("msgCount");
+		var historyLoaded = false;
+		var msgCounter = 0;
 
 		let handleRedirect = () => {
 			setTimeout(() => {
@@ -80,6 +87,26 @@
 			return claimsDecoded.sub;
 		};
 
+		let loadHistory = (data) => {
+			if (historyLoaded==false){
+				let messages = JSON.parse(data);
+				if (messages.length > 0){
+					for(let i=0; i<messages.length;i++){
+						msg = messages[i];
+						data = {
+							from: msg.User.Username,
+							timestamp: msg.timestamp,
+							message: msg.content,
+						}
+						printMessage(data, lastArea);
+					}
+				}
+				msgCounter = messages.length;
+				msgCount.innerHTML = `${msgCounter} msg(s)`;
+				historyLoaded = true;
+			}
+		};
+
 		const token = localStorage.getItem("jwtToken");
 		var bearer = "";
 		if (token) {
@@ -106,13 +133,21 @@
 		};
 
 		socket.onopen = (event) => {
+			const payload = {
+				username: username,
+			};
+
+			socket.send(JSON.stringify(payload));
 			console.log("WebSocket connection opened:", event);
 		};
 
 		socket.onmessage = (event) => {
-			const output = document.getElementById("output");
 			let msg = "";
-			data = JSON.parse(event.data);
+			loaded = loadHistory(event.data)
+			if (loaded) {
+				return;
+			}	
+			let data = JSON.parse(event.data);
 			if (data.status==401) {
 				if (data.causedby=="username"){
 					msg = `Unauthorized [${data.error}]. Redirecting...`;
@@ -122,7 +157,9 @@
 					return;
 				}
 			}else{
-				printMessage(data);
+				if (data.from) {
+					printMessage(data, newsArea);
+				}
 			}
 		};
 
@@ -152,7 +189,7 @@
 			handleRedirect();
 		});
 
-		let printMessage = (data) => {
+		let printMessage = (data, area) => {
 			if (data.from==username) {
 				tpl = `
 					<div class="d-flex justify-content-between">
@@ -182,7 +219,9 @@
 					</div>
 				`;
 			}
-			chatArea.innerHTML += tpl;
+			msgCounter++;
+			msgCount.innerHTML = `${msgCounter} msg(s)`;
+			area.innerHTML += tpl;
 			chatArea.scrollTop = chatArea.scrollHeight;			
 		};			
 	</script>
