@@ -1,7 +1,7 @@
 package main
 
 import (
-	repository "github.com/sacurio/jb-challenge/internal/app/repository/user"
+	"github.com/sacurio/jb-challenge/internal/app/repository"
 	"github.com/sacurio/jb-challenge/internal/app/service"
 	"github.com/sacurio/jb-challenge/internal/config"
 	"github.com/sacurio/jb-challenge/internal/util"
@@ -27,7 +27,12 @@ func main() {
 	userRepository := repository.NewUser(dbHandler.DB)
 	userService := service.NewService(userRepository)
 
-	webSocketService := websocket.NewWebSocketServer(cfg.WebSocketServerPort, jwtService, cfg.Logger)
+	botService := service.NewBot(cfg.BotConfig, log)
+
+	messageRepository := repository.NewMessage(dbHandler.DB)
+	messageService := service.NewMessage(messageRepository)
+
+	webSocketService := websocket.NewWebSocketServer(jwtService, botService, userService, messageService, cfg)
 	webSocketService.Start()
 
 	srv := server.NewServer(
@@ -37,6 +42,7 @@ func main() {
 		),
 		jwtService,
 		userService,
+		botService,
 		webSocketService,
 		log)
 	srv.StartHTTPServer()

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/sacurio/jb-challenge/internal/app/model"
-	repository "github.com/sacurio/jb-challenge/internal/app/repository/user"
+	"github.com/sacurio/jb-challenge/internal/app/repository"
 )
 
 type (
@@ -14,6 +14,7 @@ type (
 	User interface {
 		Register(username, email, password string) error
 		Validate(username, password string) (bool, error)
+		GetByUsername(username string) (*model.User, error)
 	}
 
 	user struct {
@@ -65,6 +66,15 @@ func (us *user) Validate(username, password string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (us *user) GetByUsername(username string) (*model.User, error) {
+	usr, err := us.repository.FindByUsername(username)
+	if err != nil {
+		return nil, err
+	}
+
+	return usr, nil
 }
 
 func validate(user *model.User) error {

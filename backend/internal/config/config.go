@@ -26,6 +26,7 @@ type (
 		SecretKey           string
 		DBConfig            DBConfig
 		RabbitConfig        RabbitMQConfig
+		BotConfig           BotConfig
 		Logger              *logrus.Logger
 	}
 
@@ -35,6 +36,12 @@ type (
 		Password string
 		Host     string
 		Port     string
+	}
+
+	BotConfig struct {
+		Name     string
+		URL      string
+		Wildcard string
 	}
 )
 
@@ -73,6 +80,11 @@ func LoadConfig(logger *logrus.Logger) (*AppConfig, error) {
 			Password: os.Getenv("RABBITMQ_DEFAULT_PASS"),
 			Host:     util.ValidateStringNotEmpty(os.Getenv("RABBITMQ_HOST"), "localhost"),
 			Port:     os.Getenv("RABBITMQ_DEFAULT_PORT"),
+		},
+		BotConfig: BotConfig{
+			Name:     os.Getenv("BOT_NAME"),
+			URL:      os.Getenv("BOT_URL"),
+			Wildcard: os.Getenv("BOT_WILDCARD"),
 		},
 		Logger: logger,
 	}, nil

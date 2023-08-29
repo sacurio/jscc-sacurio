@@ -20,6 +20,7 @@ type Server struct {
 	port             string
 	jwtService       service.JWTManager
 	userService      service.User
+	botService       service.Bot
 	webSocketService websocket.WebSocketService
 	log              *logrus.Logger
 }
@@ -29,6 +30,7 @@ func NewServer(
 	port string,
 	jwtService service.JWTManager,
 	userService service.User,
+	botService service.Bot,
 	webSocketService websocket.WebSocketService,
 	log *logrus.Logger,
 ) *Server {
@@ -36,6 +38,7 @@ func NewServer(
 		port:             port,
 		jwtService:       jwtService,
 		userService:      userService,
+		botService:       botService,
 		webSocketService: webSocketService,
 		log:              log,
 	}
@@ -55,7 +58,6 @@ func (s *Server) StartHTTPServer() {
 	chat := r.NewRoute().Subrouter()
 
 	public.HandleFunc("/user/validate/", handler.ValidateUser(s.userService, s.jwtService, s.log)).Methods("POST")
-
 	protected.HandleFunc("/ws/", s.webSocketService.Serve())
 
 	chat.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
