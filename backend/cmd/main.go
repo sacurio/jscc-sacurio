@@ -20,12 +20,14 @@ func main() {
 	}
 	log.Infof("Starting %s app...", util.ValidateStringNotEmpty(cfg.Name, util.DefaultAppName))
 
+	jwtService := service.NewJWT([]byte(cfg.SecretKey), log)
+
 	dbHandler := db.NewDB(cfg.DBConfig, log)
 
 	userRepository := repository.NewUser(dbHandler.DB)
 	userService := service.NewService(userRepository)
 
-	webSocketService := websocket.NewWebSocketServer(cfg.WebSocketServerPort, cfg.Logger)
+	webSocketService := websocket.NewWebSocketServer(cfg.WebSocketServerPort, jwtService, cfg.Logger)
 	webSocketService.Start()
 
 	srv := server.NewServer(
@@ -33,16 +35,9 @@ func main() {
 			cfg.HttpServerPort,
 			util.DefaultPort,
 		),
+		jwtService,
 		userService,
 		webSocketService,
 		log)
 	srv.StartHTTPServer()
-}
-
-func initWebSocketServer(config *config.AppConfig) {
-	go func() {
-		config.Logger.Info("Starting to rising up WebSocket Server...")
-		wss := websocket.NewWebSocketServer(config.WebSocketServerPort, config.Logger)
-		wss.Start()
-	}()
 }
