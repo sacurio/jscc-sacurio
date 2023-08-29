@@ -3,9 +3,14 @@ package model
 type Chat struct {
 	ID        string `json:"id"`
 	From      string `json:"from"`
-	To        string `json:"to"`
 	Msg       string `json:"message"`
 	Timestamp int64  `json:"timestamp"`
+}
+
+type ChatError struct {
+	Msg      string `json:"error"`
+	Status   int    `json:"status"`
+	CausedBy string `json:"causedby"`
 }
 
 type ContactList struct {
