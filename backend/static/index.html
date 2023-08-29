@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>QuoteBot Chat</title>
+	<meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+</head>
+<body>
+	<div id="output"></div>	
+	<section style="background-color: #eee;">
+		<div class="container py-5">
+		
+		  <div class="row d-flex justify-content-center">
+			<div class="col-md-8 col-lg-6 col-xl-4">
+				<div>
+					<button id="btnLogout" class="btn btn-danger">Exit</button>
+				</div>
+			  <div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center p-3"
+				  style="border-top: 4px solid #ffa900;">
+				  <h5 class="mb-0">Chat messages - <span id="spnUser"></span></h5>
+				  <div class="d-flex flex-row align-items-center">
+					<i class="fas fa-minus me-3 text-muted fa-xs"></i>
+					<i class="fas fa-comments me-3 text-muted fa-xs"></i>
+					<i class="fas fa-times text-muted fa-xs"></i>
+				  </div>
+				</div>
+				<div class="card-body" data-mdb-perfect-scrollbar="true" style="position: relative; height: 400px; overflow-y: auto;" id="chatArea">	  
+				</div>
+				<div class="card-footer text-muted d-flex justify-content-start align-items-center p-3">
+				  <div class="input-group mb-0">
+					<input type="text" class="form-control" placeholder="Type message"
+					  aria-label="Recipient's username" aria-describedby="button-addon2" id="input" />
+					<button class="btn btn-warning" type="button" id="btnSend" style="padding-top: .55rem;">
+					  Send
+					</button>
+				  </div>
+				</div>
+			  </div>
+	  
+			</div>
+		  </div>
+	  
+		</div>
+	  </section>
+
+
+	<script>
+		const chatArea = document.getElementById("chatArea");
+		const spnUser = document.getElementById("spnUser");
+		const btnSend = document.getElementById("btnSend");
+		const btnLogout = document.getElementById("btnLogout");
+
+		let handleRedirect = () => {
+			setTimeout(() => {
+				window.location.href = "login";
+			}, 500);
+		};
+
+		let parseTimestamp = (ts) => {
+			const date = new Date(ts * 1000);
+
+			const year = date.getFullYear();
+			const month = date.getMonth() + 1; // Los meses en JavaScript son 0-indexados, por lo que sumamos 1
+			const day = date.getDate();
+			const hours = date.getHours();
+			const minutes = date.getMinutes();
+			const seconds = date.getSeconds();
+
+			const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+			return formattedDate;
+		};
+
+		let getUsernameFromJWT = (bearer) => {
+			const [headerEncoded, claimsEncoded, signature] = bearer.split('.');
+			const claimsDecoded = JSON.parse(atob(claimsEncoded));
+
+			return claimsDecoded.sub;
+		};
+
+		const token = localStorage.getItem("jwtToken");
+		var bearer = "";
+		if (token) {
+			parts = token.split(" ");
+			bearer = parts[1];
+		}
+
+		if (bearer == "") {
+			handleRedirect();
+		}
+
+		username = getUsernameFromJWT(bearer);
+		if (username=="") {
+			handleRedirect();
+		}
+
+		const socket = new WebSocket("ws://localhost:8086/ws/");
+		spnUser.innerHTML = username;
+
+		socket.onerror = (event) => {
+			if (socket.type=='close'){
+				// handleRedirect();
+			}
+		};
+
+		socket.onopen = (event) => {
+			console.log("WebSocket connection opened:", event);
+		};
+
+		socket.onmessage = (event) => {
+			const output = document.getElementById("output");
+			let msg = "";
+			data = JSON.parse(event.data);
+			if (data.status==401) {
+				if (data.causedby=="username"){
+					msg = `Unauthorized [${data.error}]. Redirecting...`;
+					handleRedirect();
+					return;
+				} else if(data.causedby==""){
+					return;
+				}
+			}else{
+				printMessage(data);
+			}
+		};
+
+		socket.onclose = (event) => {
+			sessionStorage.clear();
+			console.log("WebSocket connection closed:", event);			
+		};
+
+		btnSend.addEventListener("click", () => {
+			const input = document.getElementById("input");
+			if (input.value.trim()!=""){
+					let payload = {
+					user: username,
+					jwt: bearer,
+					chat:{
+						message:input.value
+					}
+				};
+				socket.send(JSON.stringify(payload));
+				input.value = "";
+			}
+			
+		});
+
+		btnLogout.addEventListener("click", () => {
+			localStorage.clear();
+			handleRedirect();
+		});
+
+		let printMessage = (data) => {
+			if (data.from==username) {
+				tpl = `
+					<div class="d-flex justify-content-between">
+						<p class="small mb-1 text-muted">${parseTimestamp(data.timestamp)}</p>
+						<p class="small mb-1">${data.from}</p>
+					</div>
+					<div class="d-flex flex-row justify-content-end mb-4 pt-1">
+						<div>
+						<p class="small p-2 me-3 mb-3 text-white rounded-3 bg-warning">${data.message}</p>
+						</div>
+						<img src="/chat/assets/imgs/avatars/${data.from}.png"
+						alt="${data.from}" style="width: 45px; height: 100%;">
+					</div>
+				`;
+			} else {
+				tpl = `
+					<div class="d-flex justify-content-between">
+						<p class="small mb-1">${data.from}</p>
+						<p class="small mb-1 text-muted">${parseTimestamp(data.timestamp)}</p>
+					</div>
+					<div class="d-flex flex-row justify-content-start">
+						<img src="/chat/assets/imgs/avatars/${data.from}.png"
+						alt="${data.from}" style="width: 45px; height: 100%;">
+						<div>
+						<p class="small p-2 ms-3 mb-3 rounded-3" style="background-color: #f5f6f7;">${data.message}</p>
+						</div>
+					</div>
+				`;
+			}
+			chatArea.innerHTML += tpl;
+			chatArea.scrollTop = chatArea.scrollHeight;			
+		};			
+	</script>
+</body>
+</html>

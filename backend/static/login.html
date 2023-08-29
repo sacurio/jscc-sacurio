@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>QuoteBot Chat</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+</head>
+<body>	
+	<div class="container-sm mt-5">
+        <div class="mb-3">
+            <h2>QuoteBot Chat</h2>
+        </div>
+        <div class="mb-3">
+            <label for="txtUsername" class="form-label">Username</label>
+            <input type="email" class="form-control" id="txtUsername" />
+        </div>
+        <div class="mb-3">
+            <label for="txtPassword" class="form-label">Password</label>
+            <input type="password" class="form-control" id="txtPassword" placeholder="name@example.com">
+        </div>
+        <div class="mb-3" id="dvMsg">
+
+        </div>
+        <div class="mb-3">
+            <button type="button" class="btn btn-primary" id="btnLogin">Login</button>
+        </div>
+    </div>
+	
+	<script>
+        const dvMsg =  document.getElementById("dvMsg");
+        const uname = document.getElementById("txtUsername");
+        const pwd = document.getElementById("txtPassword");
+        const btnLogin =  document.getElementById("btnLogin");
+
+	    btnLogin.addEventListener("click", () => {
+            dvMsg.innerHTML = "";
+		
+			fetch(`http://localhost:8086/user/validate/?username=${uname.value}&pwd=${pwd.value}`, {method: 'POST'})
+            .then(res => {
+                console.log(res);
+                return res.text();
+            })
+            .then(txt => handleResp(txt))
+            .catch(error => console.error('Fetch error:', error));
+
+            txtUsername.value = "";
+            txtPassword.value = "";
+
+		});
+
+        let handleResp = (txt) => {
+            try {
+                console.log(txt);
+                let resp = JSON.parse(txt);
+                if (resp.status == 'ok') {
+                    dvMsg.innerHTML = `User validation successfully. Redirecting...`;
+                    uname.disabled = 'disabled';
+                    pwd.disabled = 'disabled';
+
+                    localStorage.setItem("jwtToken", resp.token);
+
+                    btnLogin.disabled = 'disabled';
+                    setTimeout(() => {
+                        window.location.href = 'index';
+                    }, 500);
+                    
+                } else {
+                    dvMsg.innerHTML = `User validation error: ${resp.error}.`;
+                }
+            } catch (error) {
+                dvMsg.innerHTML = "An error occurred while processing the response.";
+            }
+        };
+	</script>
+</body>
+</html>
