@@ -20,7 +20,7 @@ var (
 type Bot interface {
 	IsValidCommand(string) bool
 	GetBotUser(User) (*model.User, error)
-	ProcessCommandAsync(string, chan<- string)
+	ProcessCommandAsync(string, chan<- string, chan<- error)
 }
 
 type bot struct {
@@ -76,11 +76,13 @@ func (b *bot) GetBotUser(userService User) (*model.User, error) {
 	return botUser, nil
 }
 
-func (b *bot) ProcessCommandAsync(cmd string, ch chan<- string) {
+func (b *bot) ProcessCommandAsync(cmd string, ch chan<- string, chErr chan<- error) {
 	url := b.buildURL(cmd)
 	req, err := b.makeRequest(url)
 	if err != nil {
 		b.logger.Errorf("error requesting data from service, %s", err.Error())
+		chErr <- err
+		return
 	}
 	ch <- req
 }

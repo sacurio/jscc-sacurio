@@ -243,9 +243,18 @@ func (wss *webSocketServer) handleCommands(c *model.Chat) error {
 		wss.broadcastChannel <- c
 
 		channelResp := make(chan string)
-		go wss.botService.ProcessCommandAsync(originalCmd, channelResp)
+		channelErr := make(chan error)
+		go wss.botService.ProcessCommandAsync(originalCmd, channelResp, channelErr)
 
-		result := <-channelResp
+		var result string
+		select {
+		case resp := <-channelResp:
+			result = resp
+		case errStock := <-channelErr:
+			wss.logger.Errorf("An error ocurred on fetching stock data, %s", errStock.Error())
+			result = fmt.Sprintf("Something was wrong. Please try again.")
+		}
+
 		c.Msg = result
 		c.ToBePersisted = false
 		return nil
