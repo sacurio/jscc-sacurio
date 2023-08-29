@@ -1,19 +1,6 @@
 version: '3.8'
 
-services:
-  chatbot:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    environment:
-      ENVIRONMENT: container
-    ports:
-      - "8087:8087"
-    depends_on: 
-      - mysql
-      - rabbitmq
-    networks: 
-      - mynet
+services:  
   mysql:
     image: mysql:latest
     restart: always
@@ -26,7 +13,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-        - ./internal/infraestructure/db/init:/docker-entrypoint-initdb.d
+        - ./pkg/db/init:/docker-entrypoint-initdb.d
     networks:
       - mynet
 
@@ -39,6 +26,21 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
+      - mynet
+
+  chatbot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      ENVIRONMENT: container
+    ports:
+      - "8087:8087"
+    depends_on: 
+      - mysql
+      - rabbitmq
+    command: sh -c "dockerize -wait tcp://mysql:3306 -timeout 300s -wait-retry-interval 30s make run"
+    networks: 
       - mynet
 
 networks:
