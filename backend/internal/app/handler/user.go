@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/sacurio/jb-challenge/internal/app/service"
@@ -45,7 +44,7 @@ func ValidateUser(userService service.User, jwtService service.JWTManager, logge
 
 		stringToken, err := jwtService.GenerateToken(username)
 		if err != nil {
-			fmt.Println(err)
+			logger.Error(err)
 			util.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		}
 
