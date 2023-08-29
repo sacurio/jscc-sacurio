@@ -36,6 +36,9 @@ start: build
 run:
 	go run cmd/main.go
 
+# run tests
+test:
+	go test -v ./...
 # executes docker-compose file.
 docker-build:
 	docker-compose up --build
