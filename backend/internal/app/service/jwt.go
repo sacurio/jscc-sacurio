@@ -30,7 +30,6 @@ func NewJWT(secretKey []byte, logger *logrus.Logger) JWTManager {
 func (s jwtManager) GenerateToken(username string) (string, error) {
 	claims := jwt.MapClaims{
 		"sub": username,
-		"avatar": ,
 		"exp": jwt.TimeFunc().Add(time.Hour * 24).Unix(),
 	}
 
