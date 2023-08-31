@@ -15,6 +15,12 @@ This solution is based on the JobSity code challenge. It was developed using the
 - Dockerize.
 - JWT.
 
+## Prerequisites
+Please, ensure you have previously installed:
+1. Go 1.19+
+2. Make tool.
+3. Docker
+
 ## Progress
 
 Within the proposed mandatory features, the status of the solution is detailed below:
