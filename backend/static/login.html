@@ -37,7 +37,7 @@
 	    btnLogin.addEventListener("click", () => {
             dvMsg.innerHTML = "";
 		
-			fetch(`http://localhost:8086/user/validate/?username=${uname.value}&pwd=${pwd.value}`, {method: 'POST'})
+			fetch(`http://localhost:8087/user/validate/?username=${uname.value}&pwd=${pwd.value}`, {method: 'POST'})
             .then(res => {
                 console.log(res);
                 return res.text();
